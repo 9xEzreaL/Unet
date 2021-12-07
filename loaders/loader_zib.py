@@ -44,23 +44,15 @@ class imorphics_masks():
 
             raw_masks.append(temp)
 
-        # out = np.expand_dims(self.assemble_masks(raw_masks), 0) # original
-        out = np.expand_dims(self.assemble_zibmasks(raw_masks), 0) # out = (1,384,384)
+        out = np.expand_dims(self.assemble_masks(raw_masks), 0)
         return out
-
-    # need to change float32 to long
-    def assemble_zibmasks(self,raw_masks):
-        converted_masks = np.zeros(raw_masks[0][0].shape, np.long)
-        for i in range(raw_masks[0][0].shape[0]):
-            for j in range(raw_masks[0][0].shape[1]):
-                converted_masks[i][j] += int(raw_masks[0][0][i][j])
-        return converted_masks
 
     def assemble_masks(self, raw_masks):
         converted_masks = np.zeros(raw_masks[0][0].shape, np.long)
         for i in range(len(raw_masks)):
             for j in range(len(raw_masks[i])):
                 converted_masks[raw_masks[i][j] == 1] = i + 1
+
         return converted_masks
 
 
@@ -73,15 +65,17 @@ class LoaderImorphics(Dataset):
                                   'train_masks/' + str(y) + '/') for y in x] for x in
                     args_d['mask_used']]
 
-        self.dir_img = dir_img # original image
-        self.fmt_img = glob.glob(self.dir_img+'/*')[0].split('.')[-1] # fmt = png
+        self.dir_img = dir_img # /home/ziyi/Dataset/OAI_DESS_segmentation/ZIB/original/
+        self.fmt_img = glob.glob(self.dir_img+'/*')[0].split('.')[-1] # png
         self.dir_mask = dir_mask # [['/home/ziyi/Dataset/OAI_DESS_segmentation/ZIB/train_masks/png/']]
         # Assemble the masks from the folders
         self.masks = imorphics_masks(adapt=None)
+
         # Picking  subjects
         ids = sorted(glob.glob(self.dir_mask[0][0] + '*'))  # scan the first mask foldr
-        ids = [x.split(self.dir_mask[0][0])[-1].split('.')[0] for x in ids]  # get the ids ['9001104_000...]
+        ids = [x.split(self.dir_mask[0][0])[-1].split('.')[0] for x in ids]  # get the ids
         self.ids = [x for x in ids if int(x.split('_')[0]) in subjects_list]  # subject name belongs to subjects_list
+
         # Rescale the images
         self.scale = args_d['scale']
 
@@ -93,7 +87,7 @@ class LoaderImorphics(Dataset):
         return parent_parser
 
     def load_imgs(self, id):
-        x = Image.open(self.dir_img + '/' + id + '.' + self.fmt_img).convert('L')
+        x = Image.open(self.dir_img + id + '.' + self.fmt_img)
         x = resize_and_crop(x, self.scale)
         x = np.expand_dims(np.array(x), 0)  # to numpy
         return x
@@ -106,56 +100,16 @@ class LoaderImorphics(Dataset):
 
         # load image
         img = self.load_imgs(id)
+
         # load mask
-        mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale) # (1,384,384)
-        # print(mask, mask.shape, mask.max())
+        mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale)
+
         # normalization
         img = torch.from_numpy(img)
         img = img.type(torch.float32)
         img = img / img.max()
-        img = torch.cat([1*img, 1*img, 1*img], 0) # (3,384,384)
+
+        img = torch.cat([1*img, 1*img, 1*img], 0)
+
         return img, mask, id
 
-
-if __name__ == '__main__':
-    args_d = {'mask_name': 'bone_resize_B_crop_00',
-              'data_path': os.getenv("HOME") + '/Dataset/OAI_DESS_segmentation/',
-              'mask_used': [['femur', 'tibia'], [1], [2, 3]],  # ,
-              'scale': 0.5,
-              'interval': 1,
-              'thickness': 0,
-              'method': 'automatic'}
-
-    def imorphics_split():
-        train_00 = list(range(10, 71))
-        eval_00 = list(range(1, 10)) + list(range(71, 89))
-        train_01 = list(range(10+88, 71+88))
-        eval_01 = list(range(1+88, 10+88)) + list(range(71+88, 89+88))
-        return train_00, eval_00, train_01, eval_01
-
-    train_00, eval_00, train_01, eval_01 = imorphics_split()
-
-    # datasets
-    train_set = LoaderImorphics(args_d, subjects_list=train_00)
-
-    ##
-    # model
-    from deep_learning.models import HEDUNet
-    model = HEDUNet(input_channels=3)
-
-    # forward
-    y_hat, y_hat_levels = model(img)
-    print('combined_prediction shape:')
-    print(y_hat.shape)
-
-    print('predictions list length:')
-    print(len(y_hat_levels))
-    for p in y_hat_levels:
-        print(p.shape)
-
-    # loss function
-    from deep_learning.metrics_hedunet import HedUnetLoss
-    loss_function = HedUnetLoss()
-
-    loss = loss_function(y_hat, y_hat_levels, target)
-    print(loss)

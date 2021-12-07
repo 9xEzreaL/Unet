@@ -67,10 +67,18 @@ if __name__ == "__main__":
 
     # Datasets
     # Dataset Arguments
-    args_d = {'mask_name': 'bone_resize_B_crop_00',
+    # args_d = {'mask_name': 'bone_resize_B_crop_00',
+    #           'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
+    #           'mask_used': [['femur'], ['tibia'], [1],[2, 3]],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
+    #           'scale': 0.5,
+    #           'interval': 1,
+    #           'thickness': 0,
+    #           'method': 'automatic'}
+
+    args_d = {'mask_name': 'ZIB',
               'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
-              'mask_used': [['femur'], ['tibia'], ['1'], ['2', '3']],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
-              'scale': 0.5,
+              'mask_used': [['png']],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
+              'scale': 1,
               'interval': 1,
               'thickness': 0,
               'method': 'automatic'}
@@ -85,8 +93,22 @@ if __name__ == "__main__":
         eval_01 = list(range(1+88, 10+88)) + list(range(71+88, 89+88))
         return train_00, eval_00, train_01, eval_01
 
-    train_00, eval_00, train_01, eval_01 = imorphics_split()
+    import glob
+    def zib_split():
+        dir_mask = [[os.path.join(args_d['data_path'], args_d['mask_name'],
+                                  'train_masks/' + str(y) + '/') for y in x] for x in
+                    args_d['mask_used']]
+        ids = sorted(glob.glob(dir_mask[0][0] + '*'))  # scan the first mask foldr
+        ids = [x.split(dir_mask[0][0])[-1].split('.')[0] for x in ids]  # get the ids ['9001104_000...]
+        ids = [int(x.split('_')[0]) for x in ids]
+        ids = list(set(ids))
 
+        train_00 = list(ids[5:42]) + list(ids[46:400])
+        eval_00 = list(ids[:5]) + list(ids[42:46])
+        return train_00, eval_00
+
+    # train_00, eval_00, train_01, eval_01 = imorphics_split()
+    train_00, eval_00 = zib_split()
     # Dataloader
     train_set = Loader(args_d, subjects_list=train_00)
     eval_set = Loader(args_d, subjects_list=eval_00)
@@ -96,7 +118,7 @@ if __name__ == "__main__":
     print(len(eval_set))
 
     # Model, Loss Function, Metrics
-    net = UNet_clean(output_ch=len(args_d['mask_used']) + 1, backbone=args['backbone'], depth=args['depth'])
+    net = UNet_clean(output_ch = 5, backbone=args['backbone'], depth=args['depth'])
     loss_function = SegmentationCrossEntropyLoss()
     metrics = SegmentationDiceCoefficient()
 

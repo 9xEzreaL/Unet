@@ -70,6 +70,9 @@ class LitClassification(pl.LightningModule):
         self.all_label.append(labels.cpu())
         self.all_out.append(output[0].cpu().detach())
 
+        # metrics = self.get_metrics(labels.cpu(), output[0].cpu().detach())
+
+
         return loss
 
     # def training_epoch_end(self, x):

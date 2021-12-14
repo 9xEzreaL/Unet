@@ -5,6 +5,9 @@ from PIL import Image
 from torchvision import transforms
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
+import pytorch_lightning as pl
+import torchio as tio
+import matplotlib.pyplot as plt
 
 
 def append_dict(x):
@@ -108,12 +111,13 @@ class LoaderImorphics(Dataset):
         img = self.load_imgs(id)
         # load mask
         mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale) # (1,384,384)
-        # print(mask, mask.shape, mask.max())
+
         # normalization
         img = torch.from_numpy(img)
         img = img.type(torch.float32)
         img = img / img.max()
         img = torch.cat([1*img, 1*img, 1*img], 0) # (3,384,384)
+
         return img, mask, id
 
 

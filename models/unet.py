@@ -127,5 +127,5 @@ class UNet_clean(nn.Module):
 
         d = self.Conv(d)
         d = d.view(B, d.shape[1], d.shape[2], d.shape[3])  # (b, t, c, w, h)
-        return d,
+        return d
 

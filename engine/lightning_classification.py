@@ -3,6 +3,7 @@ import time, torch
 import numpy as np
 import torch.nn as nn
 import os
+from utils.imagesc import imagesc
 
 
 class LitClassification(pl.LightningModule):
@@ -31,6 +32,7 @@ class LitClassification(pl.LightningModule):
         self.tini = time.time()
         self.all_label = []
         self.all_out = []
+        self.epoch = 0
 
     def configure_optimizers(self):
         #optimizer = torch.optim.Adam(self.net.parameters(), lr=1e-4, weight_decay=self.args['weight_decay'])
@@ -46,7 +48,6 @@ class LitClassification(pl.LightningModule):
         if (self.args['legacy']) and (not self.args['cpu']):
             imgs = imgs.cuda()
             labels = labels.cuda()
-
         output = self.net(imgs)
         loss, _ = self.loss_function(output, labels)
         if not self.args['legacy']:
@@ -66,13 +67,22 @@ class LitClassification(pl.LightningModule):
             self.log('val_loss', loss, on_step=False, on_epoch=True,
                      prog_bar=True, logger=True, sync_dist=True)
 
+        # show image and result
+        if batch_idx == 5:
+            img = torch.cat([imgs[i,0,::]*255 for i in range(imgs.shape[0])], 1).detach().cpu()
+            label = torch.cat([labels[i,0,::]*255/4 for i in range(labels.shape[0])], 1).detach().cpu()
+            masks_probs = output.permute(0, 2, 3, 1)
+            _, masks_pred = torch.max(masks_probs, 3)
+            pred = torch.cat([masks_pred[i,::]*255/4 for i in range(masks_pred.shape[0])], 1).detach().cpu()
+            all = torch.cat([img, pred, label], 0)
+            imagesc(all, show=False, save='images/{}.png'.format(self.epoch))
+            self.epoch += 1
+
         # metrics
         self.all_label.append(labels.cpu())
-        self.all_out.append(output[0].cpu().detach())
-
+        # self.all_out.append(output[0].cpu().detach())
+        self.all_out.append(output.cpu().detach())
         # metrics = self.get_metrics(labels.cpu(), output[0].cpu().detach())
-
-
         return loss
 
     # def training_epoch_end(self, x):
@@ -80,7 +90,6 @@ class LitClassification(pl.LightningModule):
         all_out = torch.cat(self.all_out, 0)
         all_label = torch.cat(self.all_label, 0)
         metrics = self.get_metrics(all_label, all_out)
-
         auc = torch.from_numpy(np.array(metrics)).cuda()
         if not self.args['legacy']:
             for i in range(len(auc)):
@@ -133,6 +142,7 @@ class LitClassification(pl.LightningModule):
                 'Val Loss: ' + '{:.4f} ': [eval_loss],
                 'Metrics: ' + '{:.4f} ' * len(eval_metrics): eval_metrics,
             }
+
             print(' '.join(print_out.keys()).format(*[j for i in print_out.values() for j in i]))
 
             if (epoch % 5) == 0:

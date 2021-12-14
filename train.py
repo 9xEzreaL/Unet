@@ -103,7 +103,7 @@ if __name__ == "__main__":
         ids = [int(x.split('_')[0]) for x in ids]
         ids = list(set(ids))
 
-        train_00 = list(ids[5:42]) + list(ids[46:400])
+        train_00 = list(ids[5:20])
         eval_00 = list(ids[:5]) + list(ids[42:46])
         return train_00, eval_00
 
@@ -117,8 +117,12 @@ if __name__ == "__main__":
     print('Length of Validation set')
     print(len(eval_set))
 
+    # new API
+    from segmentation_models_pytorch.unet import Unet
+    net = Unet(encoder_name='vgg11', classes=5, activation=None, encoder_depth=5)
+
     # Model, Loss Function, Metrics
-    net = UNet_clean(output_ch = 5, backbone=args['backbone'], depth=args['depth'])
+    # net = UNet_clean(output_ch = 5, backbone=args['backbone'], depth=args['depth'])
     loss_function = SegmentationCrossEntropyLoss()
     metrics = SegmentationDiceCoefficient()
 

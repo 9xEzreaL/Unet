@@ -54,6 +54,14 @@ class LitClassification(pl.LightningModule):
             self.log('train_loss', loss, on_step=False, on_epoch=True,
                      prog_bar=True, logger=True, sync_dist=True)
 
+        if batch_idx == 5:
+            img = torch.cat([(imgs[i,0,::]/imgs[i,0,::].max())*255 for i in range(imgs.shape[0])], 1).detach().cpu()
+            label = torch.cat([labels[i,0,::]*255/4 for i in range(labels.shape[0])], 1).detach().cpu()
+            masks_probs = output.permute(0, 2, 3, 1)
+            _, masks_pred = torch.max(masks_probs, 3)
+            pred = torch.cat([masks_pred[i,::]*255/4 for i in range(masks_pred.shape[0])], 1).detach().cpu()
+            all = torch.cat([img, pred, label], 0)
+            imagesc(all, show=False, save='sample_visualization.png')
         return loss
 
     def validation_step(self, batch, batch_idx=0):
@@ -148,3 +156,5 @@ class LitClassification(pl.LightningModule):
             if (epoch % 5) == 0:
                 os.makedirs(self.args['dir_checkpoint'], exist_ok=True)
                 torch.save(self.net, self.args['dir_checkpoint'] + str(epoch) + '.pth')
+
+

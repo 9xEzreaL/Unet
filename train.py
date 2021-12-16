@@ -103,15 +103,15 @@ if __name__ == "__main__":
         ids = [int(x.split('_')[0]) for x in ids]
         ids = list(set(ids))
 
-        train_00 = list(ids[5:20])
+        train_00 = list(ids[5:42])
         eval_00 = list(ids[:5]) + list(ids[42:46])
         return train_00, eval_00
 
     # train_00, eval_00, train_01, eval_01 = imorphics_split()
     train_00, eval_00 = zib_split()
     # Dataloader
-    train_set = Loader(args_d, subjects_list=train_00)
-    eval_set = Loader(args_d, subjects_list=eval_00)
+    train_set = Loader(args_d, subjects_list=train_00, type='train')
+    eval_set = Loader(args_d, subjects_list=eval_00, type='eval')
     print('Length of training set')
     print(len(train_set))
     print('Length of Validation set')

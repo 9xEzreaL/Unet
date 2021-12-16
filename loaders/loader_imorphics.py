@@ -68,7 +68,7 @@ class imorphics_masks():
 
 
 class LoaderImorphics(Dataset):
-    def __init__(self, args_d, subjects_list):
+    def __init__(self, args_d, subjects_list, type):
         #  Folder of the images
         dir_img = os.path.join(args_d['data_path'], args_d['mask_name'], 'original')
         #  Folder of the masks
@@ -87,6 +87,7 @@ class LoaderImorphics(Dataset):
         self.ids = [x for x in ids if int(x.split('_')[0]) in subjects_list]  # subject name belongs to subjects_list
         # Rescale the images
         self.scale = args_d['scale']
+        self.type = type
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -101,6 +102,22 @@ class LoaderImorphics(Dataset):
         x = np.expand_dims(np.array(x), 0)  # to numpy
         return x
 
+    def get_augmentation_transform(self):
+        spatial_transforms = {
+            tio.RandomElasticDeformation(): 0.2,
+            tio.RandomAffine(): 0.8,
+        }
+        augment = tio.Compose([
+            # tio.RandomElasticDeformation(max_displacement=10, p=0.5),
+            tio.RandomAffine(),
+            # tio.OneOf(spatial_transforms),
+            # tio.RandomGamma(p=0.5),
+            # tio.RandomNoise(p=0.5),
+            # tio.RandomMotion(p=0.1),
+            # tio.RandomBiasField(p=0.25),
+        ])
+        return augment
+
     def __len__(self):
         return len(self.ids)
 
@@ -114,9 +131,19 @@ class LoaderImorphics(Dataset):
 
         # normalization
         img = torch.from_numpy(img)
+        mask = torch.from_numpy(mask)
         img = img.type(torch.float32)
         img = img / img.max()
         img = torch.cat([1*img, 1*img, 1*img], 0) # (3,384,384)
+        if self.type == 'train':
+            subject = tio.Subject(
+                                image=tio.ScalarImage(tensor=torch.unsqueeze(img, dim=-1)),
+                                label=tio.LabelMap(tensor=torch.unsqueeze(mask, dim=-1)),
+                            )
+            augment = self.get_augmentation_transform()
+            transformed = augment(subject)
+            img = transformed.image.data.view((3,384,384))
+            mask = transformed.label.data.type(torch.long).view((1,384,384))
 
         return img, mask, id
 

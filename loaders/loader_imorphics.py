@@ -103,24 +103,27 @@ class LoaderImorphics(Dataset):
         x = resize_and_crop(x, self.scale)
         x = np.expand_dims(np.array(x), 0)  # to numpy
         return x
-
+    
     def get_augmentation_transform(self):
-        spatial_transforms = {
-            tio.RandomElasticDeformation(): 0.2,
-            tio.RandomAffine(): 0.8,
-        }
+        ap = self.ap
+        FUNCTION_MAP = {'ela': tio.RandomElasticDeformation(p=self.ap),
+                        'aff': tio.RandomAffine(p=self.ap),
+                        'gam': tio.RandomGamma(p=self.ap),
+                        'noi': tio.RandomNoise(p=self.ap),
+                        'mot': tio.RandomMotion(p=self.ap),
+                        'bia': tio.RandomBiasField(p=self.ap),
+                        'spa': tio.OneOf({tio.RandomElasticDeformation(): self.ap,
+                                     tio.RandomAffine(): 1-self.ap}
+                                     )}
+        aug_list = []
+        if self.aug != None:
+            for i in self.aug:
+                aug = FUNCTION_MAP[i]
+                aug_list.append(aug)
+        augment = tio.Compose(aug_list)
 
-        augment = tio.Compose([
-            # tio.RandomElasticDeformation(max_displacement=3, p=0.5),
-            tio.RandomAffine(),
-            tio.OneOf(spatial_transforms),
-            # tio.RandomGamma(p=0.5),
-            # tio.RandomNoise(p=0.5),
-            # tio.RandomMotion(p=0.1),
-            # tio.RandomBiasField(p=0.25),
-        ])
         return augment
-
+    
     def __len__(self):
         return len(self.ids)
 

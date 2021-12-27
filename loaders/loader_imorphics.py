@@ -89,7 +89,8 @@ class LoaderImorphics(Dataset):
         self.scale = args_d['scale']
         self.type = type
         self.source = args_d['mask_name']
-
+        self.aug = args['aug']
+        self.ap = args['ap']
 
     @staticmethod
     def add_model_specific_args(parent_parser):

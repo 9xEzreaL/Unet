@@ -102,7 +102,8 @@ if __name__ == "__main__":
 
     else:
         args_d = {'mask_name': 'ZIB',
-                  'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
+                  'data_path': '/home/ziyi/Dataset/OAI_DESS_segmentation',
+#                   os.getenv("HOME") + os.environ.get('DATASET'),
                   'mask_used': [['png']],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
                   'scale': 1,
                   'interval': 1,

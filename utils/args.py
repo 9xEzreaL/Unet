@@ -46,4 +46,9 @@ def args_train():
 
     parser.add_argument('-s', '-source', dest='source', default='imorphics',
                         type=str, help='data source to train')
+    
+    # tio augmentation
+    parser.add_argument('--aug', nargs='*', type=str, help='tio augmentation: aff, ela, gam, noi, mot, bia, spa')
+    parser.add_argument('--ap', type=float, default=1, help='augmentation probability')
+    
     return parser

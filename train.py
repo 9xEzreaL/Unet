@@ -1,4 +1,5 @@
 import time, os
+import glob
 from torch.utils.data import DataLoader
 from utils.args import args_train, merge_args
 import torch.nn as nn
@@ -60,30 +61,8 @@ if __name__ == "__main__":
 
     # Training Arguments
     parser = args_train()
-    #args = Loader.add_model_specific_args(parser)
-
     args = dict(vars(parser.parse_args()))
     args['dir_checkpoint'] = os.environ.get('CHECKPOINTS')
-
-    # Datasets
-    # Dataset Arguments
-    # args_d = {'mask_name': 'bone_resize_B_crop_00',
-    #           'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
-    #           'mask_used': [['femur'], ['tibia'], [1],[2, 3]],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
-    #           'scale': 0.5,
-    #           'interval': 1,
-    #           'thickness': 0,
-    #           'method': 'automatic'}
-
-    args_d = {'mask_name': 'ZIB',
-              'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
-              'mask_used': [['png']],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
-              'scale': 1,
-              'interval': 1,
-              'thickness': 0,
-              'method': 'automatic'}
-
-    args = merge_args(args, args_d)
 
     # Splitting Subjects
     def imorphics_split():
@@ -93,7 +72,7 @@ if __name__ == "__main__":
         eval_01 = list(range(1+88, 10+88)) + list(range(71+88, 89+88))
         return train_00, eval_00, train_01, eval_01
 
-    import glob
+
     def zib_split():
         dir_mask = [[os.path.join(args_d['data_path'], args_d['mask_name'],
                                   'train_masks/' + str(y) + '/') for y in x] for x in
@@ -103,12 +82,36 @@ if __name__ == "__main__":
         ids = [int(x.split('_')[0]) for x in ids]
         ids = list(set(ids))
 
-        train_00 = list(ids[5:42])
-        eval_00 = list(ids[:5]) + list(ids[42:46])
+        train_00 = list(ids[5:400])
+        eval_00 = list(ids[:5]) + list(ids[400:404])
         return train_00, eval_00
 
-    # train_00, eval_00, train_01, eval_01 = imorphics_split()
-    train_00, eval_00 = zib_split()
+    # Datasets
+    # Dataset Arguments
+    if args['source'] == 'imorphics':
+        args_d = {'mask_name': 'bone_resize_B_crop_00',
+                  'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
+                  'mask_used': [[1],[2, 3]],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
+                  'scale': 0.5,
+                  'interval': 1,
+                  'thickness': 0,
+                  'method': 'automatic'}
+        args_l = {'classes': len(args_d['mask_used'])+1 }
+        args_d = merge_args(args_d, args_l)
+        train_00, eval_00, train_01, eval_01 = imorphics_split()
+
+    else:
+        args_d = {'mask_name': 'ZIB',
+                  'data_path': os.getenv("HOME") + os.environ.get('DATASET'),
+                  'mask_used': [['png']],  #[[1], [2, 3]],  # ['femur'], ['tibia'],
+                  'scale': 1,
+                  'interval': 1,
+                  'thickness': 0,
+                  'method': 'automatic',
+                  'classes': 5}
+        train_00, eval_00 = zib_split()
+    args = merge_args(args, args_d)
+
     # Dataloader
     train_set = Loader(args_d, subjects_list=train_00, type='train')
     eval_set = Loader(args_d, subjects_list=eval_00, type='eval')
@@ -119,9 +122,10 @@ if __name__ == "__main__":
 
     # new API
     from segmentation_models_pytorch.unet import Unet
-    net = Unet(encoder_name='vgg11', classes=5, activation=None, encoder_depth=5)
+    net = Unet(encoder_name=args['backbone'], classes=args['classes'], activation=None, encoder_depth=5)
 
     # Model, Loss Function, Metrics
+    # old model API
     # net = UNet_clean(output_ch = 5, backbone=args['backbone'], depth=args['depth'])
     loss_function = SegmentationCrossEntropyLoss()
     metrics = SegmentationDiceCoefficient()
@@ -130,4 +134,4 @@ if __name__ == "__main__":
     train(net, args, train_set, eval_set, loss_function, metrics)
 
 # Usage in command line:
-# CUDA_VISIBLE_DEVICES=0 python train.py -b 16 --bu 64 --lr 0.01 --legacy
+# CUDA_VISIBLE_DEVICES=0 python train.py -b 32 --bu 64 --lr 0.01 -s imorphics --legacy

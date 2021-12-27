@@ -33,7 +33,7 @@ class imorphics_masks():
     def __init__(self, adapt=None):
         self.adapt = adapt
 
-    def load_masks(self, id, dir, fmt, scale):
+    def load_masks(self, id, dir, fmt, scale, source):
         if self.adapt is not None:
             id = str(self.adapt.index((int(id.split('/')[1]), id.split('/')[0])) + 1) + '_' + str(int(id.split('/')[2]))
         raw_masks = []
@@ -46,9 +46,10 @@ class imorphics_masks():
                 temp.append(x.astype(np.float32))  # np.float32
 
             raw_masks.append(temp)
-
-        # out = np.expand_dims(self.assemble_masks(raw_masks), 0) # original
-        out = np.expand_dims(self.assemble_zibmasks(raw_masks), 0) # out = (1,384,384)
+        if source == 'bone_resize_B_crop_00':
+            out = np.expand_dims(self.assemble_masks(raw_masks), 0) # original
+        else:
+            out = np.expand_dims(self.assemble_zibmasks(raw_masks), 0) # out = (1,384,384)
         return out
 
     # need to change float32 to long
@@ -75,7 +76,6 @@ class LoaderImorphics(Dataset):
         dir_mask = [[os.path.join(args_d['data_path'], args_d['mask_name'],
                                   'train_masks/' + str(y) + '/') for y in x] for x in
                     args_d['mask_used']]
-
         self.dir_img = dir_img # original image
         self.fmt_img = glob.glob(self.dir_img+'/*')[0].split('.')[-1] # fmt = png
         self.dir_mask = dir_mask # [['/home/ziyi/Dataset/OAI_DESS_segmentation/ZIB/train_masks/png/']]
@@ -88,6 +88,8 @@ class LoaderImorphics(Dataset):
         # Rescale the images
         self.scale = args_d['scale']
         self.type = type
+        self.source = args_d['mask_name']
+
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -107,10 +109,11 @@ class LoaderImorphics(Dataset):
             tio.RandomElasticDeformation(): 0.2,
             tio.RandomAffine(): 0.8,
         }
+
         augment = tio.Compose([
-            # tio.RandomElasticDeformation(max_displacement=10, p=0.5),
+            # tio.RandomElasticDeformation(max_displacement=3, p=0.5),
             tio.RandomAffine(),
-            # tio.OneOf(spatial_transforms),
+            tio.OneOf(spatial_transforms),
             # tio.RandomGamma(p=0.5),
             # tio.RandomNoise(p=0.5),
             # tio.RandomMotion(p=0.1),
@@ -127,7 +130,7 @@ class LoaderImorphics(Dataset):
         # load image
         img = self.load_imgs(id)
         # load mask
-        mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale) # (1,384,384)
+        mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale, source=self.source) # (1,384,384)
 
         # normalization
         img = torch.from_numpy(img)
@@ -142,8 +145,8 @@ class LoaderImorphics(Dataset):
                             )
             augment = self.get_augmentation_transform()
             transformed = augment(subject)
-            img = transformed.image.data.view((3,384,384))
-            mask = transformed.label.data.type(torch.long).view((1,384,384))
+            img = transformed.image.data.view((img.shape[0],img.shape[1],img.shape[2]))
+            mask = transformed.label.data.type(torch.long).view((mask.shape[0],mask.shape[1],mask.shape[2]))
 
         return img, mask, id
 

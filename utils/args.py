@@ -44,4 +44,6 @@ def args_train():
     parser.add_argument('--mode', type=str, default='dummy')
     parser.add_argument('--port', type=str, default='dummy')
 
+    parser.add_argument('-s', '-source', dest='source', default='imorphics',
+                        type=str, help='data source to train')
     return parser

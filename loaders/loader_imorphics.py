@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 import torchio as tio
+import random
 import matplotlib.pyplot as plt
 
 
@@ -69,13 +70,13 @@ class imorphics_masks():
 
 
 class LoaderImorphics(Dataset):
-    def __init__(self, args_d, subjects_list, type):
+    def __init__(self, args, subjects_list, type):
         #  Folder of the images
-        dir_img = os.path.join(args_d['data_path'], args_d['mask_name'], 'original')
+        dir_img = os.path.join(args['data_path'], args['mask_name'], 'original')
         #  Folder of the masks
-        dir_mask = [[os.path.join(args_d['data_path'], args_d['mask_name'],
+        dir_mask = [[os.path.join(args['data_path'], args['mask_name'],
                                   'train_masks/' + str(y) + '/') for y in x] for x in
-                    args_d['mask_used']]
+                    args['mask_used']]
         self.dir_img = dir_img # original image
         self.fmt_img = glob.glob(self.dir_img+'/*')[0].split('.')[-1] # fmt = png
         self.dir_mask = dir_mask # [['/home/ziyi/Dataset/OAI_DESS_segmentation/ZIB/train_masks/png/']]
@@ -86,9 +87,9 @@ class LoaderImorphics(Dataset):
         ids = [x.split(self.dir_mask[0][0])[-1].split('.')[0] for x in ids]  # get the ids ['9001104_000...]
         self.ids = [x for x in ids if int(x.split('_')[0]) in subjects_list]  # subject name belongs to subjects_list
         # Rescale the images
-        self.scale = args_d['scale']
+        self.scale = args['scale']
         self.type = type
-        self.source = args_d['mask_name']
+        self.source = args['mask_name']
         self.aug = args['aug']
         self.ap = args['ap']
 
@@ -140,9 +141,20 @@ class LoaderImorphics(Dataset):
         img = torch.from_numpy(img)
         mask = torch.from_numpy(mask)
         img = img.type(torch.float32)
+        img[:,:,:10]=0
+        img[:,:,374:]=0
+
+        osize = img.shape[2]
+        w_offset = random.randint(0, max(0, osize - 256 - 1))
+        h_offset = random.randint(0, max(0, osize - 256 - 1))
+        img = img[:, h_offset:h_offset + 256, w_offset:w_offset + 256]
+        mask = mask[:, h_offset:h_offset + 256, w_offset:w_offset + 256]
+
         img = img / img.max()
         img = torch.cat([1*img, 1*img, 1*img], 0) # (3,384,384)
-        if self.type == 'train':
+        img = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))(img)
+
+        if 0: #self.type == 'train':
             subject = tio.Subject(
                                 image=tio.ScalarImage(tensor=torch.unsqueeze(img, dim=-1)),
                                 label=tio.LabelMap(tensor=torch.unsqueeze(mask, dim=-1)),
@@ -151,8 +163,7 @@ class LoaderImorphics(Dataset):
             transformed = augment(subject)
             img = transformed.image.data.view((img.shape[0],img.shape[1],img.shape[2]))
             mask = transformed.label.data.type(torch.long).view((mask.shape[0],mask.shape[1],mask.shape[2]))
-
-        return img, mask, id
+        return img, mask , id
 
 
 if __name__ == '__main__':

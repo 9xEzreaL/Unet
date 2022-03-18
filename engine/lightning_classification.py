@@ -55,11 +55,11 @@ class LitClassification(pl.LightningModule):
                      prog_bar=True, logger=True, sync_dist=True)
 
         if batch_idx == 5:
-            img = torch.cat([(imgs[i,0,::]/imgs[i,0,::].max())*255 for i in range(imgs.shape[0])], 1).detach().cpu()
-            label = torch.cat([labels[i,0,::]*255/4 for i in range(labels.shape[0])], 1).detach().cpu()
+            img = torch.cat([((imgs[i,0,::]-imgs[i,0,::].min())/imgs[i,0,::].max())*255 for i in range(imgs.shape[0])], 1).detach().cpu()
+            label = torch.cat([labels[i,0,::]/4*255 for i in range(labels.shape[0])], 1).detach().cpu()
             masks_probs = output.permute(0, 2, 3, 1)
             _, masks_pred = torch.max(masks_probs, 3)
-            pred = torch.cat([masks_pred[i,::]*255/4 for i in range(masks_pred.shape[0])], 1).detach().cpu()
+            pred = torch.cat([masks_pred[i,::]/4*255 for i in range(masks_pred.shape[0])], 1).detach().cpu()
             all = torch.cat([img, pred, label], 0)
             imagesc(all, show=False, save='sample_visualization.png')
         return loss
@@ -76,15 +76,15 @@ class LitClassification(pl.LightningModule):
                      prog_bar=True, logger=True, sync_dist=True)
 
         # show image and result
-        if batch_idx == 5:
-            img = torch.cat([imgs[i,0,::]*255 for i in range(imgs.shape[0])], 1).detach().cpu()
-            label = torch.cat([labels[i,0,::]*255/4 for i in range(labels.shape[0])], 1).detach().cpu()
-            masks_probs = output.permute(0, 2, 3, 1)
-            _, masks_pred = torch.max(masks_probs, 3)
-            pred = torch.cat([masks_pred[i,::]*255/4 for i in range(masks_pred.shape[0])], 1).detach().cpu()
-            all = torch.cat([img, pred, label], 0)
-            imagesc(all, show=False, save='images/{}.png'.format(self.epoch))
-            self.epoch += 1
+        # if batch_idx == 5:
+        #     img = torch.cat([imgs[i,0,::]*255 for i in range(imgs.shape[0])], 1).detach().cpu()
+        #     label = torch.cat([labels[i,0,::]*255/4 for i in range(labels.shape[0])], 1).detach().cpu()
+        #     masks_probs = output.permute(0, 2, 3, 1)
+        #     _, masks_pred = torch.max(masks_probs, 3)
+        #     pred = torch.cat([masks_pred[i,::]*255/4 for i in range(masks_pred.shape[0])], 1).detach().cpu()
+        #     all = torch.cat([img, pred, label], 0)
+        #     imagesc(all, show=False, save='images/{}.png'.format(self.epoch))
+        #     self.epoch += 1
 
         # metrics
         self.all_label.append(labels.cpu())
@@ -106,7 +106,10 @@ class LitClassification(pl.LightningModule):
         self.all_out = []
 
         self.tini = time.time()
+        self.epoch += 1
         return metrics
+
+
 
     """ Original Pytorch Code """
     def training_loop(self, train_loader):
@@ -135,7 +138,7 @@ class LitClassification(pl.LightningModule):
             return epoch_loss / i, metrics
 
     def overall_loop(self):
-
+        # can't work
         # We loop over the training epochs
         for epoch in range(self.args['epochs']):
             tini = time.time()
@@ -152,9 +155,13 @@ class LitClassification(pl.LightningModule):
             }
 
             print(' '.join(print_out.keys()).format(*[j for i in print_out.values() for j in i]))
-
             if (epoch % 5) == 0:
                 os.makedirs(self.args['dir_checkpoint'], exist_ok=True)
                 torch.save(self.net, self.args['dir_checkpoint'] + str(epoch) + '.pth')
+
+    def on_epoch_end(self):
+        if self.epoch % 2 ==0:
+            os.makedirs(self.args['dir_checkpoint'], exist_ok=True)
+            torch.save(self.net, 'large' + self.args['dir_checkpoint'] + str(self.epoch -1) + '.pth')
 
 

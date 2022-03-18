@@ -7,7 +7,10 @@ core.*
 dataset/
 logs/
 result/
+images/
 Untitled/
 notinuse/
 submodels/
 checkpoints/
+largecheckpoints/
+sample_visualization.png

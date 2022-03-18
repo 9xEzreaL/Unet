@@ -100,7 +100,6 @@ class LoaderImorphics(Dataset):
 
         # load image
         img = self.load_imgs(id)
-
         # load mask
         mask = self.masks.load_masks(id, self.dir_mask, '.png', scale=self.scale)
 

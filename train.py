@@ -114,8 +114,8 @@ if __name__ == "__main__":
     args = merge_args(args, args_d)
 
     # Dataloader
-    train_set = Loader(args_d, subjects_list=train_00, type='train')
-    eval_set = Loader(args_d, subjects_list=eval_00, type='eval')
+    train_set = Loader(args, subjects_list=train_00, type='train')
+    eval_set = Loader(args, subjects_list=eval_00, type='eval')
     print('Length of training set')
     print(len(train_set))
     print('Length of Validation set')
